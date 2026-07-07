@@ -59,8 +59,10 @@ const ShareTracking = () => {
           
           setRoutes([{ coordinates: coords, safetyRating: data.safetyRating }]);
           
-          // Place live marker at the starting coordinates initially
-          if (coords.length > 0) {
+          // Place live marker at the traveler's current coordinates if available, otherwise starting coordinates
+          if (data.currentLat !== null && data.currentLng !== null) {
+            setUserLocation({ lat: data.currentLat, lng: data.currentLng });
+          } else if (coords.length > 0) {
             setUserLocation({ lat: coords[0][0], lng: coords[0][1] });
           }
         }
@@ -113,9 +115,26 @@ const ShareTracking = () => {
     }
   };
 
-  // Simulate traveler moving along the route coordinates in database mode
+  // Live polling for database-tracked journey, or simulation for guest tracking
   useEffect(() => {
-    if (routes.length > 0 && routes[0].coordinates.length > 0) {
+    if (journeyId) {
+      // SCENARIO 1: Poll database for traveler's live coordinates
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/journeys/share/${journeyId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.currentLat !== null && data.currentLng !== null) {
+              setUserLocation({ lat: data.currentLat, lng: data.currentLng });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to poll traveler live location:", err);
+        }
+      }, 5000); // Poll every 5 seconds
+      return () => clearInterval(pollInterval);
+    } else if (routes.length > 0 && routes[0].coordinates.length > 0) {
+      // SCENARIO 2: Local client-side simulation for guest tracking
       const coords = routes[0].coordinates;
       const interval = setInterval(() => {
         setSimCoordIndex((prevIndex) => {
@@ -124,10 +143,9 @@ const ShareTracking = () => {
           return nextIndex;
         });
       }, 4000); // Shift marker every 4 seconds
-
       return () => clearInterval(interval);
     }
-  }, [routes]);
+  }, [journeyId, routes]);
 
   return (
     <div className="h-screen flex flex-col bg-neutral-50 font-sans text-neutral-900 overflow-hidden">
@@ -238,6 +256,7 @@ const ShareTracking = () => {
             destination={destination}
             routes={routes}
             selectedRouteIndex={0}
+            isJourneyActive={true}
           />
         </div>
       </div>

@@ -719,6 +719,7 @@ const Dashboard = () => {
       routeScreenshot: routeScreenshot
     };
 
+    let journeyId = null;
     if (isGuest) {
       // Save directly to local storage history list
       const savedHistory = JSON.parse(localStorage.getItem('gosafe_guest_history') || '[]');
@@ -739,17 +740,44 @@ const Dashboard = () => {
         });
         const savedJourney = await response.json();
         setActiveJourney(savedJourney);
+        journeyId = savedJourney.id;
       } catch (err) {
         setErrorMsg(err.message || 'Failed to save journey to database.');
       }
     }
 
-    // Initialize Mock GPS Tracking interval updates
+    const sendLocationUpdate = async (id, lat, lng) => {
+      try {
+        await authenticatedFetch(`/api/journeys/${id}/location?lat=${lat}&lng=${lng}`, {
+          method: 'PUT'
+        });
+      } catch (err) {
+        console.error("Failed to update live coordinates on server:", err);
+      }
+    };
+
+    // Initialize GPS Tracking interval updates
     if (navigator.geolocation) {
+      // Fetch immediate coordinates
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserLocation({ lat, lng });
+        if (!isGuest && journeyId) {
+          sendLocationUpdate(journeyId, lat, lng);
+        }
+      }, (err) => console.warn("Geolocation immediate error:", err), { enableHighAccuracy: true });
+
+      // Fetch periodic coordinates
       const interval = setInterval(() => {
         navigator.geolocation.getCurrentPosition((pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        });
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserLocation({ lat, lng });
+          if (!isGuest && journeyId) {
+            sendLocationUpdate(journeyId, lat, lng);
+          }
+        }, (err) => console.warn("Geolocation interval error:", err), { enableHighAccuracy: true });
       }, 5000);
       setTrackingInterval(interval);
     }
@@ -1058,6 +1086,7 @@ const Dashboard = () => {
           onSelectRoute={setSelectedRouteIndex}
           routeShops={routeShops}
           isLoading={loadingRoutes}
+          isJourneyActive={!!activeJourney}
         />
       </div>
 

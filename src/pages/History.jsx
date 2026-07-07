@@ -45,7 +45,7 @@ const History = () => {
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
     const currentToken = searchParams.get('token');
-    
+
     let newToken = null;
     if (loading) {
       newToken = encodeState({ status: "processing", action: "fetching-history", ts: loadStartTs || Date.now() });
@@ -179,7 +179,7 @@ const History = () => {
               title="Clear all history"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear History</span>
+              <span>All</span>
             </button>
           )}
         </div>

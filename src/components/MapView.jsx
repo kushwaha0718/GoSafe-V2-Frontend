@@ -27,9 +27,10 @@ const destIcon = L.divIcon({
 
 // Pulse user icon using L.divIcon
 const userLiveIcon = L.divIcon({
-  className: 'pulse-marker',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  html: '<div class="w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-lg relative flex items-center justify-center"><div class="absolute w-full h-full rounded-full bg-blue-500 animate-ping opacity-75"></div></div>',
+  className: 'custom-user-live-marker',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
 });
 
 // Custom SOS icon using L.divIcon
@@ -48,16 +49,16 @@ const shopMarkerIcon = L.divIcon({
 });
 
 // Controller to handle center changes and bounds fit smoothly
-const MapController = ({ center, bounds }) => {
+const MapController = ({ center, bounds, zoom = 14 }) => {
   const map = useMap();
 
   useEffect(() => {
     if (bounds && bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     } else if (center) {
-      map.setView(center, 14, { animate: true });
+      map.setView(center, zoom, { animate: true });
     }
-  }, [center, bounds, map]);
+  }, [center, bounds, zoom, map]);
 
   return null;
 };
@@ -71,14 +72,15 @@ const MapView = ({
   onSelectRoute,
   sosLocation = null,
   routeShops = [],
-  isLoading = false
+  isLoading = false,
+  isJourneyActive = false
 }) => {
   // Default map center: Delhi/User if userLocation is empty
   const defaultCenter = userLocation ? [userLocation.lat, userLocation.lng] : [28.6139, 77.2090];
 
   // Calculate map bounds based on origin and destination
   let mapBounds = null;
-  if (origin && destination) {
+  if (!isJourneyActive && origin && destination) {
     mapBounds = [
       [origin.lat, origin.lng],
       [destination.lat, destination.lng]
@@ -101,13 +103,15 @@ const MapView = ({
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" // CartoDB Voyager (colorful) tiles
           />
 
-          <MapController center={defaultCenter} bounds={mapBounds} />
+          <MapController center={defaultCenter} bounds={mapBounds} zoom={isJourneyActive ? 16 : 14} />
 
           {/* Live User GPS Location */}
           {userLocation && (
             <Marker position={[userLocation.lat, userLocation.lng]} icon={userLiveIcon}>
               <Popup>
-                <div className="text-slate-100 text-xs font-semibold">Your Live Location</div>
+                <div className="text-slate-100 text-xs font-semibold">
+                  {isJourneyActive ? "Your Live Location" : "Traveler's Live Location"}
+                </div>
               </Popup>
             </Marker>
           )}
